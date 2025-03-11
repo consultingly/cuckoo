@@ -7,7 +7,7 @@ SPOR: Scalable Peer Organised Routing
 SPOR is a lightweight cross-platform application that lets you create a **self-sustaining local internet** without external infrastructure. Whether you're **off-grid, in a disaster zone, or just building a local network**, SPOR helps you stay connected.
 
 ## 🌍 **Why SPOR?**
-✅ **No internet? No problem.** Cuckoo runs entirely on local WiFi.
+✅ **No internet? No problem.** SPOR runs entirely on local WiFi.
 ✅ **Self-contained mesh network** – any device can become a node.
 ✅ **Built for resilience** – share it via USB, no online setup required.
 ✅ **Works on old phones, laptops, and Raspberry Pi** – give your unused devices a second life.
