@@ -4,7 +4,7 @@
 
 SPOR: Scalable Peer Organised Routing
 
-SPOR is a lightweight cross-platform application that lets you create a **self-sustaining local internet** without external infrastructure. Whether you're **off-grid, in a disaster zone, or just building a local network**, Cuckoo helps you stay connected.
+SPOR is a lightweight cross-platform application that lets you create a **self-sustaining local internet** without external infrastructure. Whether you're **off-grid, in a disaster zone, or just building a local network**, SPOR helps you stay connected.
 
 ## 🌍 **Why SPOR?**
 ✅ **No internet? No problem.** Cuckoo runs entirely on local WiFi.
@@ -71,9 +71,9 @@ We’re actively developing Cuckoo! Future plans include:
 ---
 ## 📜 **License**
 SPOR is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. This means:
-- You are free to **use, modify, and distribute** Cuckoo.
+- You are free to **use, modify, and distribute** SPOR.
 - Any modifications **must be shared under the same license**, even if only provided as a network service.
-- This ensures Cuckoo remains **fully open-source and community-driven**.
+- This ensures Spor remains **fully open-source and community-driven**.
 
 ---
 ## 👨‍💻 **Contribute**
