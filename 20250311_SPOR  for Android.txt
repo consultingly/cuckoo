@@ -1,0 +1,176 @@
+package com.spor;
+
+import android.content.Context;
+import android.content.SharedPreferences;
+import android.net.wifi.WifiConfiguration;
+import android.net.wifi.WifiManager;
+import android.os.Bundle;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.RadioGroup;
+import androidx.appcompat.app.AppCompatActivity;
+
+import java.io.IOException;
+import fi.iki.elonen.NanoHTTPD;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
+
+public class MainActivity extends AppCompatActivity {
+    private WifiManager wifiManager;
+    private TextView statusText;
+    private LocalWebServer webServer;
+    private LocalDnsServer dnsServer;
+    private RadioGroup roleSelection;
+    private Button applyRoleButton, resetButton;
+    private EditText ssidInput;
+    private SharedPreferences sharedPreferences;
+    
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_main);
+
+        wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
+        statusText = findViewById(R.id.statusText);
+        roleSelection = findViewById(R.id.roleSelection);
+        applyRoleButton = findViewById(R.id.applyRoleButton);
+        resetButton = findViewById(R.id.resetButton);
+        ssidInput = findViewById(R.id.ssidInput);
+        sharedPreferences = getSharedPreferences("sporPrefs", MODE_PRIVATE);
+
+        loadSavedRole();
+        
+        applyRoleButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                applySelectedRole();
+            }
+        });
+        
+        resetButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                resetSettings();
+            }
+        });
+    }
+    
+    private void applySelectedRole() {
+        int selectedId = roleSelection.getCheckedRadioButtonId();
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        String customSSID = ssidInput.getText().toString().trim();
+        if (customSSID.isEmpty()) {
+            customSSID = "spor";
+        }
+
+        if (selectedId == R.id.radioServer) {
+            startWifiHotspot(customSSID);
+            startWebServer();
+            startDnsServer();
+            statusText.setText("Role: Server - Running Hotspot (" + customSSID + "), Web Server, and DNS Server");
+            editor.putString("userRole", "Server");
+            editor.putString("ssidName", customSSID);
+        } else if (selectedId == R.id.radioNode) {
+            startWifiHotspot(customSSID);
+            statusText.setText("Role: Node - Extending WiFi Mesh with SSID: " + customSSID);
+            editor.putString("userRole", "Node");
+            editor.putString("ssidName", customSSID);
+        } else {
+            statusText.setText("Role: Viewer - Connected as a user only");
+            editor.putString("userRole", "Viewer");
+        }
+        
+        editor.apply();
+    }
+    
+    private void loadSavedRole() {
+        String savedRole = sharedPreferences.getString("userRole", "Viewer");
+        String savedSSID = sharedPreferences.getString("ssidName", "spor");
+        ssidInput.setText(savedSSID);
+        
+        if (savedRole.equals("Server")) {
+            roleSelection.check(R.id.radioServer);
+        } else if (savedRole.equals("Node")) {
+            roleSelection.check(R.id.radioNode);
+        } else {
+            roleSelection.check(R.id.radioViewer);
+        }
+    }
+    
+    private void resetSettings() {
+        SharedPreferences.Editor editor = sharedPreferences.edit();
+        editor.clear();
+        editor.apply();
+        roleSelection.check(R.id.radioViewer);
+        ssidInput.setText("spor");
+        statusText.setText("Settings reset to default. Role set to Viewer.");
+    }
+    
+    private void startWifiHotspot(String ssidName) {
+        WifiConfiguration wifiConfig = new WifiConfiguration();
+        wifiConfig.SSID = ssidName;
+        wifiConfig.preSharedKey = "12345678";
+        wifiConfig.allowedKeyManagement.set(WifiConfiguration.KeyMgmt.WPA_PSK);
+        
+        try {
+            wifiManager.setWifiEnabled(false);
+            Thread.sleep(1000);
+            wifiManager.addNetwork(wifiConfig);
+            wifiManager.setWifiEnabled(true);
+            statusText.append("\nWiFi Hotspot started: " + ssidName);
+        } catch (Exception e) {
+            statusText.append("\nError starting WiFi Hotspot");
+        }
+    }
+
+    private void startWebServer() {
+        try {
+            webServer = new LocalWebServer();
+            webServer.start();
+            statusText.append("\nWeb Server running on: http://nest.local:8080");
+        } catch (IOException e) {
+            statusText.append("\nError starting Web Server");
+        }
+    }
+    
+    private void startDnsServer() {
+        dnsServer = new LocalDnsServer();
+        dnsServer.start();
+        statusText.append("\nLocal DNS Server running on Port 53");
+    }
+    
+    private static class LocalWebServer extends NanoHTTPD {
+        public LocalWebServer() throws IOException {
+            super(8080);
+        }
+
+        @Override
+        public Response serve(IHTTPSession session) {
+            return newFixedLengthResponse("<h1>Welcome to spor</h1><p>This is a decentralized local internet.</p>");
+        }
+    }
+    
+    private static class LocalDnsServer extends Thread {
+        public void run() {
+            try {
+                DatagramSocket socket = new DatagramSocket(53);
+                byte[] buffer = new byte[512];
+                while (true) {
+                    DatagramPacket request = new DatagramPacket(buffer, buffer.length);
+                    socket.receive(request);
+                    
+                    String requestedDomain = new String(request.getData()).trim();
+                    InetAddress resolvedAddress = InetAddress.getByName("192.168.43.1");
+                    
+                    DatagramPacket response = new DatagramPacket(resolvedAddress.getAddress(), resolvedAddress.getAddress().length, request.getAddress(), request.getPort());
+                    socket.send(response);
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        }
+    }
+}

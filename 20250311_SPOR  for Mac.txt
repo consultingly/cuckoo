@@ -1,0 +1,48 @@
+import os
+import subprocess
+import flask
+import threading
+from flask import Flask
+import socketserver
+from http.server import SimpleHTTPRequestHandler
+import dns.resolver
+import dns.server
+
+app = Flask(__name__)
+
+# Function to create WiFi hotspot on macOS
+def start_hotspot(ssid="spor", password="12345678"):
+    try:
+        subprocess.run(f"sudo networksetup -setairportnetwork en0 {ssid} {password}", shell=True, check=True)
+        print(f"WiFi Hotspot started with SSID: {ssid}")
+    except subprocess.CalledProcessError:
+        print("Error starting WiFi Hotspot. Make sure WiFi is enabled.")
+
+# Function to start a local web server
+@app.route('/')
+def home():
+    return "<h1>Welcome to spor</h1><p>This is a decentralized local internet.</p>"
+
+def start_web_server():
+    app.run(host='0.0.0.0', port=8080)
+
+# Function to configure and start a local DNS server
+def configure_dns():
+    try:
+        subprocess.run("sudo killall -HUP mDNSResponder", shell=True)
+        print("DNS Server configured and running.")
+    except Exception as e:
+        print("Error configuring DNS:", str(e))
+
+# Start everything in separate threads
+def start_services():
+    threading.Thread(target=start_web_server, daemon=True).start()
+    configure_dns()
+    print("Web and DNS services started.")
+
+if __name__ == "__main__":
+    print("Starting spor Server on macOS...")
+    start_hotspot()
+    start_services()
+    input("Press Enter to stop services...")
+    print("Stopping spor services...")

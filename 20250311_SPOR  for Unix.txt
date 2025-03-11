@@ -1,0 +1,70 @@
+import os
+import subprocess
+import flask
+import threading
+from flask import Flask
+import socketserver
+from http.server import SimpleHTTPRequestHandler
+import dns.resolver
+import dns.server
+
+app = Flask(__name__)
+
+# Function to create WiFi hotspot on Raspberry Pi
+def start_hotspot(ssid="spor", password="12345678"):
+    try:
+        subprocess.run("sudo systemctl stop hostapd dnsmasq", shell=True)
+        with open("/etc/hostapd/hostapd.conf", "w") as f:
+            f.write(f"""
+interface=wlan0
+driver=nl80211
+ssid={ssid}
+hw_mode=g
+channel=7
+wmm_enabled=0
+macaddr_acl=0
+auth_algs=1
+ignore_broadcast_ssid=0
+wpa=2
+wpa_passphrase={password}
+wpa_key_mgmt=WPA-PSK
+rsn_pairwise=CCMP
+            """)
+        subprocess.run("sudo systemctl start hostapd dnsmasq", shell=True)
+        print(f"WiFi Hotspot started with SSID: {ssid}")
+    except Exception as e:
+        print("Error starting WiFi Hotspot:", str(e))
+
+# Function to start a local web server
+@app.route('/')
+def home():
+    return "<h1>Welcome to spor</h1><p>This is a decentralized local internet.</p>"
+
+def start_web_server():
+    app.run(host='0.0.0.0', port=8080)
+
+# Function to configure and start a local DNS server
+def configure_dns():
+    try:
+        with open("/etc/dnsmasq.conf", "w") as f:
+            f.write("""
+address=/nest.local/192.168.4.1
+            """)
+        subprocess.run("sudo systemctl restart dnsmasq", shell=True)
+        print("DNS Server configured and running.")
+    except Exception as e:
+        print("Error configuring DNS:", str(e))
+
+# Start everything in separate threads
+def start_services():
+    threading.Thread(target=start_web_server, daemon=True).start()
+    configure_dns()
+    print("Web and DNS services started.")
+
+if __name__ == "__main__":
+    print("Starting spor Server on Raspberry Pi...")
+    start_hotspot()
+    start_services()
+    input("Press Enter to stop services...")
+    subprocess.run("sudo systemctl stop hostapd dnsmasq", shell=True)
+    print("WiFi Hotspot stopped.")

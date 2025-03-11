@@ -1,0 +1,60 @@
+import os
+import subprocess
+import flask
+import threading
+from flask import Flask
+import socketserver
+from http.server import SimpleHTTPRequestHandler
+import dns.resolver
+import dns.server
+
+app = Flask(__name__)
+
+# Function to create WiFi hotspot (Windows Hosted Network)
+def start_hotspot(ssid="spor", password="12345678"):
+    try:
+        subprocess.run("netsh wlan set hostednetwork mode=allow ssid={} key={}".format(ssid, password), shell=True, check=True)
+        subprocess.run("netsh wlan start hostednetwork", shell=True, check=True)
+        print(f"WiFi Hotspot started with SSID: {ssid}")
+    except subprocess.CalledProcessError:
+        print("Error starting WiFi Hotspot. Make sure you have a supported network adapter.")
+
+# Function to start a local web server (Flask)
+@app.route('/')
+def home():
+    return "<h1>Welcome to spor</h1><p>This is a decentralized local internet.</p>"
+
+def start_web_server():
+    app.run(host='0.0.0.0', port=8080)
+
+# Function to start a DNS server
+class DNSHandler(socketserver.BaseRequestHandler):
+    def handle(self):
+        data, socket = self.request
+        response = data[:2] + b'\x81\x80' + data[4:6] + data[4:6] + b'\x00\x00\x00\x00' + data[12:]
+        response += b'\xc0\x0c' + b'\x00\x01\x00\x01\x00\x00\x00\x3c\x00\x04' + socket.inet_aton("192.168.137.1")
+        socket.sendto(response, self.client_address)
+
+# Function to start the DNS server
+def start_dns_server():
+    with socketserver.UDPServer(("", 53), DNSHandler) as server:
+        print("Local DNS server running on port 53...")
+        server.serve_forever()
+
+# Function to stop WiFi hotspot
+def stop_hotspot():
+    subprocess.run("netsh wlan stop hostednetwork", shell=True)
+    print("WiFi Hotspot stopped.")
+
+# Start everything in separate threads
+def start_services():
+    threading.Thread(target=start_web_server, daemon=True).start()
+    threading.Thread(target=start_dns_server, daemon=True).start()
+    print("Web and DNS services started.")
+
+if __name__ == "__main__":
+    print("Starting spor Server...")
+    start_hotspot()
+    start_services()
+    input("Press Enter to stop services...")
+    stop_hotspot()
